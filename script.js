@@ -54,7 +54,7 @@ async function listZones() {
         const json = await response.json();
         zones = json;
         zones[0].featured = true; // always gonna be the discord
-        await fetchPopularity();
+        Promise.all([fetchPopularity("year"), fetchPopularity("month"), fetchPopularity("week"), fetchPopularity("day")]);
         sortZones();
         try {
         const search = new URLSearchParams(window.location.search);
@@ -138,19 +138,19 @@ async function listZones() {
         container.innerHTML = `Error loading zones: ${error}`;
     }
 }
-async function fetchPopularity() {
+async function fetchPopularity(duration) {
     try {
-        const response = await fetch("https://data.jsdelivr.com/v1/stats/packages/gh/gn-math/html@main/files?period=year");
+        const response = await fetch("https://data.jsdelivr.com/v1/stats/packages/gh/gn-math/html@main/files?period="+duration);
         const data = await response.json();
         data.forEach(file => {
             const idMatch = file.name.match(/\/(\d+)\.html$/);
             if (idMatch) {
                 const id = parseInt(idMatch[1]);
-                popularityData[id] = file.hits.total;
+                popularityData[duration][id] = file.hits.total;
             }
         });
     } catch (error) {
-        popularityData[0] = 0;
+        popularityData[duration][0] = 0;
     }
 }
 
@@ -161,7 +161,13 @@ function sortZones() {
     } else if (sortBy === 'id') {
         zones.sort((a, b) => a.id - b.id);
     } else if (sortBy === 'popular') {
-        zones.sort((a, b) => (popularityData[b.id] || 0) - (popularityData[a.id] || 0));
+        zones.sort((a, b) => (popularityData['year'][b.id] || 0) - (popularityData['year'][a.id] || 0));
+    } else if (sortBy === 'trendingMonth') {
+        zones.sort((a, b) => (popularityData['month'][b.id] || 0) - (popularityData['month'][a.id] || 0));
+    } else if (sortBy === 'trendingWeek') {
+        zones.sort((a, b) => (popularityData['week'][b.id] || 0) - (popularityData['week'][a.id] || 0));
+    } else if (sortBy === 'trendingDay') {
+        zones.sort((a, b) => (popularityData['day'][b.id] || 0) - (popularityData['day'][a.id] || 0));
     }
     zones.sort((a, b) => (a.id === -1 ? -1 : b.id === -1 ? 1 : 0));
     if (featuredContainer.innerHTML === "") {
